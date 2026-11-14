@@ -5,7 +5,7 @@ class HabitosLogic {
 
   static double progreso(int total, int cantidad) {
     if (cantidad <= 0) return 0;
-    return (total / cantidad).clamp(0.0, 1.0);
+    return (total / cantidad).clamp(0.0, 1.0).toDouble();
   }
 
   static String mensaje(double progreso) {
