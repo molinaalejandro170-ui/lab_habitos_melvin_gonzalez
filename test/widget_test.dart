@@ -10,7 +10,9 @@ void main() {
     expect(find.text('Hábitos de hoy'), findsOneWidget);
     expect(find.text('Hábitos — Cumplidos: 0 / 5'), findsOneWidget);
 
-    await tester.tap(find.byType(CheckboxListTile).first);
+    final primerHabito = find.byType(CheckboxListTile).first;
+    await tester.ensureVisible(primerHabito);
+    await tester.tap(primerHabito);
     await tester.pump();
 
     expect(find.text('Hábitos — Cumplidos: 1 / 5'), findsOneWidget);
