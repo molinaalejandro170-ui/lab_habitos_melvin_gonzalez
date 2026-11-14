@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'habitos_logic.dart';
 
 void main() {
   runApp(const MyApp());
@@ -70,11 +71,11 @@ class _PanelHabitosState extends State<PanelHabitos> {
   // Getters liberados
 
   int get _totalCumplidos {
-    return _cumplidos.where((cumplido) => cumplido).length;
+    return HabitosLogic.totalCumplidos(_cumplidos);
   }
 
   double get _progreso {
-    return _habitos.isEmpty ? 0 : _totalCumplidos / _habitos.length;
+    return HabitosLogic.progreso(_totalCumplidos, _habitos.length);
   }
 
   bool get _metaAlcanzada {
@@ -82,21 +83,7 @@ class _PanelHabitosState extends State<PanelHabitos> {
   }
 
   String get _mensaje {
-    final porcentaje = (_progreso * 100).round();
-
-    if (porcentaje == 0) {
-      return '¡Empecemos!';
-    }
-
-    if (porcentaje < 50) {
-      return 'Buen inicio';
-    }
-
-    if (porcentaje < 100) {
-      return '¡Vas muy bien!';
-    }
-
-    return '¡Día completado!';
+    return HabitosLogic.mensaje(_progreso);
   }
 
   // Acciones
@@ -148,6 +135,26 @@ class _PanelHabitosState extends State<PanelHabitos> {
         title: Text(
           'Hábitos — Cumplidos: $_totalCumplidos / ${_habitos.length}',
         ),
+      ),
+      actions: [
+        IconButton(
+          tooltip: 'Resumen',
+          icon: const Icon(Icons.insights),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ResumenHabitosScreen(
+                  total: _totalCumplidos,
+                  cantidad: _habitos.length,
+                  meta: _meta,
+                  nota: _nota,
+                ),
+              ),
+            );
+          },
+        ),
+      ],
       ),
 
       body: ListView(
@@ -361,6 +368,51 @@ class _PanelHabitosState extends State<PanelHabitos> {
 
           const SizedBox(height: 30),
         ],
+      ),
+    );
+  }
+}
+
+
+class ResumenHabitosScreen extends StatelessWidget {
+  const ResumenHabitosScreen({
+    super.key,
+    required this.total,
+    required this.cantidad,
+    required this.meta,
+    required this.nota,
+  });
+
+  final int total;
+  final int cantidad;
+  final int meta;
+  final String nota;
+
+  @override
+  Widget build(BuildContext context) {
+    final progreso = HabitosLogic.progreso(total, cantidad);
+    return Scaffold(
+      appBar: AppBar(title: const Text('Resumen de hábitos')),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Hábitos completados: $total de $cantidad'),
+            const SizedBox(height: 12),
+            LinearProgressIndicator(value: progreso),
+            const SizedBox(height: 12),
+            Text('Meta diaria: $meta hábitos'),
+            const SizedBox(height: 12),
+            Text('Nota del día: ${nota.isEmpty ? "Sin nota" : nota}'),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.arrow_back),
+              label: const Text('Volver'),
+            ),
+          ],
+        ),
       ),
     );
   }
