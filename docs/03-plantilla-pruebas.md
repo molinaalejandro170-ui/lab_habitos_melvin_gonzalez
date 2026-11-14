@@ -1,16 +1,31 @@
-# Plantilla de pruebas
+﻿# 03. Plantilla y resultados de pruebas
 
-| ID | Caso | Resultado esperado | Resultado obtenido | Estado |
-|---|---|---|---|---|
-| CP-01 | Abrir aplicación | Se muestra el panel | Pendiente de ejecución local | No ejecutado |
-| CP-02 | Ver lista de hábitos | Se muestran cinco hábitos | Pendiente de ejecución local | No ejecutado |
-| CP-03 | Marcar hábito | Aumenta el contador | Cubierto por prueba de widget; ejecutar localmente | Pendiente |
-| CP-04 | Desmarcar hábito | Disminuye el contador | Pendiente de ejecución local | No ejecutado |
-| CP-05 | Cambiar meta | Se actualiza el valor | Pendiente de ejecución local | No ejecutado |
-| CP-06 | Alcanzar meta | Aparece aviso | Pendiente de ejecución local | No ejecutado |
-| CP-07 | Activar modo enfoque | Oculta hábitos cumplidos | Pendiente de ejecución local | No ejecutado |
-| CP-08 | Guardar nota | Se muestra la nota guardada | Pendiente de ejecución local | No ejecutado |
-| CP-09 | Abrir resumen | Se abre segunda pantalla | Cubierto por prueba de widget; ejecutar localmente | Pendiente |
-| CP-10 | Volver del resumen | Regresa al panel | Cubierto por prueba de widget; ejecutar localmente | Pendiente |
+## Entorno
+- Aplicación: Flutter.
+- Plataforma de prueba: Microsoft Edge.
+- Base de datos: Cloud Firestore.
+- Pruebas automatizadas: flutter test.
+- Análisis estático: flutter analyze.
 
-Las pruebas deben ejecutarse en el entorno Flutter del estudiante y actualizarse con resultados reales.
+## Casos de prueba
+
+| N.º | Caso | Tipo | Resultado |
+|---|---|---|---|
+| 1 | Contar hábitos completados | Unitario | Aprobado |
+| 2 | Calcular el progreso | Unitario | Aprobado |
+| 3 | Calcular progreso con lista vacía | Unitario | Aprobado |
+| 4 | Mostrar mensaje de día completado | Unitario | Aprobado |
+| 5 | Mostrar mensaje de inicio | Unitario | Aprobado |
+| 6 | Mostrar el resumen de hábitos | Widget | Aprobado |
+| 7 | Marcar un hábito y guardar el cambio | Manual | Aprobado |
+| 8 | Abrir la pantalla de resumen | Manual | Aprobado |
+| 9 | Reiniciar hábitos y comprobar persistencia | Manual | Aprobado |
+| 10 | Comprobar comportamiento sin conexión a Firestore | Manual | Pendiente |
+
+## Comandos ejecutados
+
+- flutter test: todos los tests pasaron.
+- flutter analyze: No issues found.
+
+## Observación
+La prueba sin conexión queda pendiente. No se afirma que el comportamiento de la aplicación sin conexión haya sido validado.

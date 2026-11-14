@@ -1,11 +1,32 @@
-# Registro de incidencias
+﻿# 04. Registro de incidencias
 
-No se deben declarar errores como reproducidos si no se han observado. Registrar aquí las incidencias reales durante la ejecución.
+## Incidencia 1
+- Descripción: El comando firebase no era reconocido por PowerShell.
+- Severidad: Baja.
+- Prioridad: Media.
+- Origen: Configuración del entorno.
+- Causa: Firebase CLI no estaba instalado.
+- Solución: Instalar Firebase CLI mediante npm.
+- Estado: Corregida.
 
-| ID | Descripción | Severidad | Prioridad | Origen | Estado |
-|---|---|---|---|---|---|
-| INC-001 | Pendiente de identificar durante la ejecución | Por determinar | Por determinar | Pruebas funcionales | Abierta |
-| INC-002 | Pendiente de identificar durante la ejecución | Por determinar | Por determinar | Pruebas de interfaz | Abierta |
-| INC-003 | Pendiente de identificar durante la ejecución | Por determinar | Por determinar | Análisis y pruebas | Abierta |
+## Incidencia 2
+- Descripción: El comando flutterfire configure no era reconocido.
+- Severidad: Baja.
+- Prioridad: Media.
+- Origen: Configuración del entorno.
+- Causa: FlutterFire CLI no estaba disponible como comando directo.
+- Solución: Ejecutar dart pub global run flutterfire_cli:flutterfire configure.
+- Estado: Corregida.
 
-Para cada incidencia documentar pasos para reproducir, resultado esperado, resultado obtenido, causa, corrección, commit y prueba de regresión.
+## Incidencia 3
+- Descripción: Falló la prueba predeterminada Counter increments smoke test.
+- Severidad: Baja.
+- Prioridad: Media.
+- Origen: Prueba automatizada inicial.
+- Causa: La prueba predeterminada de Flutter no correspondía a la interfaz de la aplicación.
+- Solución: Sustituir la prueba predeterminada por una prueba del resumen de hábitos.
+- Verificación: flutter test terminó con All tests passed.
+- Estado: Corregida.
+
+## Resultado
+Las incidencias anteriores fueron corregidas. No se registran como errores funcionales actuales de la aplicación.

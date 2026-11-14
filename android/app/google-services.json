@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "401397220943",
+    "project_id": "habitos-melvin",
+    "storage_bucket": "habitos-melvin.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:401397220943:android:052a324f7274076d640c3a",
+        "android_client_info": {
+          "package_name": "com.example.lab_habitos_melvin_gonzalez"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDN3OE6CzMa3szjNa0kuJJQFa_mzCT41Js"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

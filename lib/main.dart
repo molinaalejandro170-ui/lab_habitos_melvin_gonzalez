@@ -1,7 +1,14 @@
-import 'package:flutter/material.dart';
-import 'habitos_logic.dart';
 
-void main() {
+import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'firebase_options.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const MyApp());
 }
 
@@ -13,7 +20,10 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Panel de hábitos',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(colorSchemeSeed: Colors.green, useMaterial3: true),
+      theme: ThemeData(
+        colorSchemeSeed: Colors.green,
+        useMaterial3: true,
+      ),
       home: const PanelHabitos(),
     );
   }
@@ -27,9 +37,9 @@ class PanelHabitos extends StatefulWidget {
 }
 
 class _PanelHabitosState extends State<PanelHabitos> {
-  // Datos
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  final List<String> _habitos = const [
+  final List<String> _habitos = [
     'Beber 2 L de agua',
     'Leer 20 minutos',
     'Caminar 30 minutos',
@@ -37,30 +47,78 @@ class _PanelHabitosState extends State<PanelHabitos> {
     'Dormir 8 horas',
   ];
 
-  // Estado
-
-  late List<bool> _cumplidos;
-
+  List<bool> _cumplidos = List<bool>.filled(5, false);
+  List<String> _documentos = [];
   int _meta = 3;
-
   bool _enfoque = false;
-
+  bool _cargando = true;
+  String _error = '';
   String _nota = '';
 
   final TextEditingController _notaCtrl = TextEditingController();
 
-  static const int _metaInicial = 3;
-
-  // Inicializacion
-
   @override
   void initState() {
     super.initState();
-
-    _cumplidos = List<bool>.filled(_habitos.length, false);
+    _cargarHabitos();
   }
 
-  // Liberar recursos
+  Future<void> _cargarHabitos() async {
+    try {
+      final coleccion = _db.collection('habitos');
+      final datos = await coleccion.get();
+
+      final nuevosCumplidos = List<bool>.filled(5, false);
+      final nuevosDocumentos = List<String>.filled(5, '');
+
+      for (int i = 0; i < _habitos.length; i++) {
+        final nombre = _habitos[i];
+
+        final coincidencias = datos.docs.where((doc) {
+          final guardado = (doc.data()['nombre'] ?? '')
+              .toString()
+              .toLowerCase();
+
+          return guardado == nombre.toLowerCase() ||
+              (nombre == 'Leer 20 minutos' && guardado == 'leer');
+        });
+
+        if (coincidencias.isNotEmpty) {
+          final documento = coincidencias.first;
+          nuevosDocumentos[i] = documento.id;
+          nuevosCumplidos[i] =
+              documento.data()['completado'] == true;
+
+          if (documento.data()['nombre'] != nombre) {
+            await coleccion.doc(documento.id).update({
+              'nombre': nombre,
+            });
+          }
+        } else {
+          final nuevo = await coleccion.add({
+            'nombre': nombre,
+            'completado': false,
+          });
+
+          nuevosDocumentos[i] = nuevo.id;
+        }
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _cumplidos = nuevosCumplidos;
+        _documentos = nuevosDocumentos;
+        _cargando = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _cargando = false;
+        _error = 'No se pudieron cargar los hábitos: $e';
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -68,30 +126,43 @@ class _PanelHabitosState extends State<PanelHabitos> {
     super.dispose();
   }
 
-  // Getters liberados
+  int get _totalCumplidos =>
+      _cumplidos.where((valor) => valor).length;
 
-  int get _totalCumplidos {
-    return HabitosLogic.totalCumplidos(_cumplidos);
-  }
+  double get _progreso =>
+      _habitos.isEmpty ? 0 : _totalCumplidos / _habitos.length;
 
-  double get _progreso {
-    return HabitosLogic.progreso(_totalCumplidos, _habitos.length);
-  }
-
-  bool get _metaAlcanzada {
-    return _totalCumplidos >= _meta;
-  }
+  bool get _metaAlcanzada => _totalCumplidos >= _meta;
 
   String get _mensaje {
-    return HabitosLogic.mensaje(_progreso);
+    final porcentaje = (_progreso * 100).round();
+
+    if (porcentaje == 0) return '¡Empecemos!';
+    if (porcentaje < 50) return 'Buen inicio';
+    if (porcentaje < 100) return '¡Vas muy bien!';
+    return '¡Día completado!';
   }
 
-  // Acciones
+  Future<void> _alternarHabito(int index) async {
+    final nuevoEstado = !_cumplidos[index];
 
-  void _alternarHabito(int index) {
     setState(() {
-      _cumplidos[index] = !_cumplidos[index];
+      _cumplidos[index] = nuevoEstado;
     });
+
+    try {
+      await _db.collection('habitos').doc(_documentos[index]).update({
+        'completado': nuevoEstado,
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _cumplidos[index] = !nuevoEstado;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo guardar el cambio')),
+      );
+    }
   }
 
   void _cambiarMeta(double valor) {
@@ -112,42 +183,49 @@ class _PanelHabitosState extends State<PanelHabitos> {
     });
   }
 
-  void _reiniciarDia() {
+  Future<void> _reiniciarDia() async {
     setState(() {
       _cumplidos = List<bool>.filled(_habitos.length, false);
-
       _nota = '';
-
-      _meta = _metaInicial;
-
+      _meta = 3;
       _enfoque = false;
-
       _notaCtrl.clear();
     });
-  }
 
-  // Interfaz
+    try {
+      final lote = _db.batch();
+
+      for (final id in _documentos) {
+        lote.update(_db.collection('habitos').doc(id), {
+          'completado': false,
+        });
+      }
+
+      await lote.commit();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error al reiniciar los hábitos')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Hábitos — Cumplidos: $_totalCumplidos / ${_habitos.length}',
-        ),
+        title: Text('Hábitos — $_totalCumplidos / ${_habitos.length}'),
         actions: [
           IconButton(
-            tooltip: 'Resumen',
-            icon: const Icon(Icons.insights),
+            icon: const Icon(Icons.bar_chart),
+            tooltip: 'Ver resumen',
             onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => ResumenHabitosScreen(
-                    total: _totalCumplidos,
-                    cantidad: _habitos.length,
-                    meta: _meta,
-                    nota: _nota,
+                  builder: (_) => ResumenHabitos(
+                    habitos: _habitos,
+                    cumplidos: _cumplidos,
                   ),
                 ),
               );
@@ -155,260 +233,257 @@ class _PanelHabitosState extends State<PanelHabitos> {
           ),
         ],
       ),
-
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Progreso
-
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Progreso del día',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+      body: _cargando
+          ? const Center(child: CircularProgressIndicator())
+          : _error.isNotEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Text(_error),
                   ),
-
-                  const SizedBox(height: 12),
-
-                  LinearProgressIndicator(value: _progreso, minHeight: 10),
-
-                  const SizedBox(height: 8),
-
-                  Text('${(_progreso * 100).round()} % completado'),
-
-                  const SizedBox(height: 12),
-
-                  Text(
-                    _mensaje,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          // Meta del dia
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Meta del día',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-
-                  Slider(
-                    value: _meta.toDouble(),
-                    min: 1,
-                    max: _habitos.length.toDouble(),
-                    divisions: _habitos.length - 1,
-                    label: '$_meta',
-                    onChanged: _cambiarMeta,
-                  ),
-
-                  Text(
-                    'Meta: $_meta hábitos',
-                    style: const TextStyle(fontSize: 16),
-                  ),
-
-                  if (_metaAlcanzada)
-                    Container(
-                      margin: const EdgeInsets.only(top: 10),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.green.shade100,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Text(
-                        '✓ Meta alcanzada',
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                )
+              : ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Progreso del día',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            LinearProgressIndicator(
+                              value: _progreso,
+                              minHeight: 10,
+                            ),
+                            const SizedBox(height: 8),
+                            Text('${(_progreso * 100).round()} % completado'),
+                            const SizedBox(height: 12),
+                            Text(
+                              _mensaje,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          // Modo enfoque
-          Card(
-            child: SwitchListTile(
-              title: const Text(
-                'Modo enfoque',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              subtitle: const Text('Ocultar hábitos ya cumplidos'),
-              value: _enfoque,
-              onChanged: _alternarEnfoque,
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          // Lista de habitos
-          const Text(
-            'Hábitos de hoy',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-
-          const SizedBox(height: 8),
-
-          ...List.generate(_habitos.length, (index) {
-            // No mostramos los hábitos cumplidos.
-            if (_enfoque && _cumplidos[index]) {
-              return const SizedBox.shrink();
-            }
-
-            return Card(
-              child: CheckboxListTile(
-                value: _cumplidos[index],
-                onChanged: (_) {
-                  _alternarHabito(index);
-                },
-                title: Text(_habitos[index]),
-                controlAffinity: ListTileControlAffinity.leading,
-              ),
-            );
-          }),
-
-          const SizedBox(height: 16),
-
-          // Nota del dia
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Nota del día',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  TextField(
-                    controller: _notaCtrl,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      hintText: 'Escribe una nota...',
-                      labelText: 'Nota',
+                    const SizedBox(height: 12),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Meta del día',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Slider(
+                              value: _meta.toDouble(),
+                              min: 1,
+                              max: 5,
+                              divisions: 4,
+                              label: '$_meta',
+                              onChanged: _cambiarMeta,
+                            ),
+                            Text('Meta: $_meta hábitos'),
+                            if (_metaAlcanzada)
+                              const Text(
+                                '✓ Meta alcanzada',
+                                style: TextStyle(
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
                     ),
-                    onSubmitted: (_) {
-                      _guardarNota();
-                    },
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _guardarNota,
-                      child: const Text('Guardar nota'),
+                    const SizedBox(height: 12),
+                    Card(
+                      child: SwitchListTile(
+                        title: const Text(
+                          'Modo enfoque',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: const Text(
+                          'Ocultar hábitos ya cumplidos',
+                        ),
+                        value: _enfoque,
+                        onChanged: _alternarEnfoque,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Hábitos de hoy',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ...List.generate(_habitos.length, (index) {
+                      if (_enfoque && _cumplidos[index]) {
+                        return const SizedBox.shrink();
+                      }
 
-          const SizedBox(height: 12),
-
-          // Nota guardada
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Nota guardada',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  Text(
-                    _nota.isEmpty ? 'Sin nota' : _nota,
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // Restart
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _reiniciarDia,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Reiniciar día'),
-            ),
-          ),
-
-          const SizedBox(height: 30),
-        ],
-      ),
+                      return Card(
+                        child: CheckboxListTile(
+                          value: _cumplidos[index],
+                          onChanged: (_) => _alternarHabito(index),
+                          title: Text(_habitos[index]),
+                          controlAffinity: ListTileControlAffinity.leading,
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 16),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Nota del día',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: _notaCtrl,
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                                hintText: 'Escribe una nota...',
+                                labelText: 'Nota',
+                              ),
+                              onSubmitted: (_) => _guardarNota(),
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: _guardarNota,
+                                child: const Text('Guardar nota'),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              _nota.isEmpty ? 'Sin nota' : _nota,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _reiniciarDia,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Reiniciar día'),
+                      ),
+                    ),
+                    const SizedBox(height: 30),
+                  ],
+                ),
     );
   }
 }
 
+class ResumenHabitos extends StatelessWidget {
+  final List<String> habitos;
+  final List<bool> cumplidos;
 
-class ResumenHabitosScreen extends StatelessWidget {
-  const ResumenHabitosScreen({
+  const ResumenHabitos({
     super.key,
-    required this.total,
-    required this.cantidad,
-    required this.meta,
-    required this.nota,
+    required this.habitos,
+    required this.cumplidos,
   });
-
-  final int total;
-  final int cantidad;
-  final int meta;
-  final String nota;
 
   @override
   Widget build(BuildContext context) {
-    final progreso = HabitosLogic.progreso(total, cantidad);
+    final total = cumplidos.where((valor) => valor).length;
+    final progreso = total / habitos.length;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Resumen de hábitos')),
+      appBar: AppBar(
+        title: const Text('Resumen de hábitos'),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Hábitos completados: $total de $cantidad'),
+            const Text(
+              'Tu resumen del día',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.check_circle, color: Colors.green),
+                title: const Text('Hábitos completados'),
+                subtitle: Text('$total de ${habitos.length}'),
+              ),
+            ),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    const Text('Progreso total'),
+                    const SizedBox(height: 12),
+                    LinearProgressIndicator(value: progreso),
+                    const SizedBox(height: 8),
+                    Text('${(progreso * 100).round()} %'),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: 12),
-            LinearProgressIndicator(value: progreso),
-            const SizedBox(height: 12),
-            Text('Meta diaria: $meta hábitos'),
-            const SizedBox(height: 12),
-            Text('Nota del día: ${nota.isEmpty ? "Sin nota" : nota}'),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.arrow_back),
-              label: const Text('Volver'),
+            const Text(
+              'Detalle de hábitos',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                itemCount: habitos.length,
+                itemBuilder: (context, index) {
+                  return ListTile(
+                    leading: Icon(
+                      cumplidos[index]
+                          ? Icons.check_circle
+                          : Icons.radio_button_unchecked,
+                      color: cumplidos[index] ? Colors.green : Colors.grey,
+                    ),
+                    title: Text(habitos[index]),
+                    subtitle: Text(
+                      cumplidos[index] ? 'Completado' : 'Pendiente',
+                    ),
+                  );
+                },
+              ),
             ),
           ],
         ),

@@ -1,15 +1,29 @@
-# Declaración de alcance
+﻿# 01. Declaración de alcance
 
-Proyecto: Panel de hábitos del día.
+## Proyecto
+Panel de hábitos del día.
 
-| Módulo | ¿Aplica actualmente? | Observación |
-|---|---|---|
-| Interfaz Flutter | Sí | Panel principal y pantalla de resumen |
-| Navegación | Sí | Navegación entre panel y resumen |
-| Firebase Auth | No | No está configurado en el repositorio actual |
-| Firestore / Realtime Database | No | No está configurado en el repositorio actual |
-| Storage | No | No está configurado |
-| FCM | No | No está configurado |
-| API REST externa | No | No está implementada |
+## Objetivo
+Integrar Firebase en una aplicación Flutter y comprobar sus funciones principales mediante pruebas.
 
-**Pendiente para cumplir el requisito mínimo del enunciado:** configurar al menos un servicio Firebase real y agregar sus archivos de configuración sin publicar secretos.
+## Alcance de integración
+- Firebase Core: inicialización de Firebase.
+- Cloud Firestore: lectura y escritura de hábitos.
+- Aplicación Flutter: panel principal y pantalla de resumen.
+- Git: control de versiones.
+
+## Servicios no incluidos
+- Firebase Authentication.
+- Firebase Storage.
+- Firebase Cloud Messaging.
+- API REST externa.
+
+## Funciones principales
+- Mostrar cinco hábitos.
+- Marcar y desmarcar hábitos.
+- Guardar el estado de los hábitos en Firestore.
+- Consultar el resumen de hábitos.
+- Reiniciar los hábitos del día.
+
+## Fuera del alcance
+No se implementó inicio de sesión ni almacenamiento de notas personales.
