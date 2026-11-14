@@ -1,0 +1,3 @@
+# Reflexión final
+
+Esta práctica me permite comprender que desarrollar una aplicación no consiste únicamente en construir su interfaz, sino también en comprobar que cada función trabaje correctamente. Las pruebas unitarias ayudan a verificar la lógica de los cálculos y las pruebas de widgets permiten revisar la interacción del usuario con la pantalla. La navegación entre pantallas también debe validarse para evitar errores durante el uso. Además, el análisis estático facilita encontrar problemas antes de ejecutar la aplicación. Como aprendizaje, debo probar cada cambio y conservar evidencia de los resultados obtenidos.
