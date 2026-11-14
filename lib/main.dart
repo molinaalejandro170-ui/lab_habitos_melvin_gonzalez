@@ -135,26 +135,25 @@ class _PanelHabitosState extends State<PanelHabitos> {
         title: Text(
           'Hábitos — Cumplidos: $_totalCumplidos / ${_habitos.length}',
         ),
-      ),
-      actions: [
-        IconButton(
-          tooltip: 'Resumen',
-          icon: const Icon(Icons.insights),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => ResumenHabitosScreen(
-                  total: _totalCumplidos,
-                  cantidad: _habitos.length,
-                  meta: _meta,
-                  nota: _nota,
+        actions: [
+          IconButton(
+            tooltip: 'Resumen',
+            icon: const Icon(Icons.insights),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ResumenHabitosScreen(
+                    total: _totalCumplidos,
+                    cantidad: _habitos.length,
+                    meta: _meta,
+                    nota: _nota,
+                  ),
                 ),
-              ),
-            );
-          },
-        ),
-      ],
+              );
+            },
+          ),
+        ],
       ),
 
       body: ListView(
