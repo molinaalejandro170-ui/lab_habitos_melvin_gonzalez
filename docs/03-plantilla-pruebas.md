@@ -1,4 +1,6 @@
-﻿# 03. Plantilla y resultados de pruebas
+﻿
+
+# 03. Plantilla y resultados de pruebas
 
 ## Entorno
 - Aplicación: Flutter.
@@ -16,16 +18,21 @@
 | 3 | Calcular progreso con lista vacía | Unitario | Aprobado |
 | 4 | Mostrar mensaje de día completado | Unitario | Aprobado |
 | 5 | Mostrar mensaje de inicio | Unitario | Aprobado |
-| 6 | Mostrar el resumen de hábitos | Widget | Aprobado |
-| 7 | Marcar un hábito y guardar el cambio | Manual | Aprobado |
-| 8 | Abrir la pantalla de resumen | Manual | Aprobado |
-| 9 | Reiniciar hábitos y comprobar persistencia | Manual | Aprobado |
-| 10 | Comprobar comportamiento sin conexión a Firestore | Manual | Pendiente |
+| 6 | Cargar hábitos con repositorio falso | Widget | Aprobado |
+| 7 | Actualizar un hábito con repositorio falso | Widget | Aprobado |
+| 8 | Mostrar el resumen de hábitos | Widget | Aprobado |
+| 9 | Marcar un hábito y guardar el cambio en Firestore | Manual | Aprobado |
+| 10 | Comprobar persistencia después de actualizar Edge | Manual | Aprobado |
+| 11 | Reiniciar hábitos y comprobar persistencia | Manual | Aprobado |
+| 12 | Abrir la pantalla de resumen | Manual | Aprobado |
 
 ## Comandos ejecutados
 
-- flutter test: todos los tests pasaron.
+- flutter test: 7 pruebas automatizadas aprobadas.
 - flutter analyze: No issues found.
 
 ## Observación
-La prueba sin conexión queda pendiente. No se afirma que el comportamiento de la aplicación sin conexión haya sido validado.
+
+Las pruebas manuales de lectura, escritura, actualización y reinicio de hábitos se realizaron correctamente con Cloud Firestore.
+
+La prueba de funcionamiento sin conexión a Firestore queda pendiente y no se considera validada.

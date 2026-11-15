@@ -1,8 +1,10 @@
 
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
+import 'habitos_repository.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,14 +32,19 @@ class MyApp extends StatelessWidget {
 }
 
 class PanelHabitos extends StatefulWidget {
-  const PanelHabitos({super.key});
+  final HabitosRepository? repository;
+
+  const PanelHabitos({
+    super.key,
+    this.repository,
+  });
 
   @override
   State<PanelHabitos> createState() => _PanelHabitosState();
 }
 
 class _PanelHabitosState extends State<PanelHabitos> {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  late final HabitosRepository _repository;
 
   final List<String> _habitos = [
     'Beber 2 L de agua',
@@ -60,59 +67,27 @@ class _PanelHabitosState extends State<PanelHabitos> {
   @override
   void initState() {
     super.initState();
+
+    _repository = widget.repository ??
+        FirestoreHabitosRepository(FirebaseFirestore.instance);
+
     _cargarHabitos();
   }
 
   Future<void> _cargarHabitos() async {
     try {
-      final coleccion = _db.collection('habitos');
-      final datos = await coleccion.get();
-
-      final nuevosCumplidos = List<bool>.filled(5, false);
-      final nuevosDocumentos = List<String>.filled(5, '');
-
-      for (int i = 0; i < _habitos.length; i++) {
-        final nombre = _habitos[i];
-
-        final coincidencias = datos.docs.where((doc) {
-          final guardado = (doc.data()['nombre'] ?? '')
-              .toString()
-              .toLowerCase();
-
-          return guardado == nombre.toLowerCase() ||
-              (nombre == 'Leer 20 minutos' && guardado == 'leer');
-        });
-
-        if (coincidencias.isNotEmpty) {
-          final documento = coincidencias.first;
-          nuevosDocumentos[i] = documento.id;
-          nuevosCumplidos[i] =
-              documento.data()['completado'] == true;
-
-          if (documento.data()['nombre'] != nombre) {
-            await coleccion.doc(documento.id).update({
-              'nombre': nombre,
-            });
-          }
-        } else {
-          final nuevo = await coleccion.add({
-            'nombre': nombre,
-            'completado': false,
-          });
-
-          nuevosDocumentos[i] = nuevo.id;
-        }
-      }
+      final datos = await _repository.cargar(_habitos);
 
       if (!mounted) return;
 
       setState(() {
-        _cumplidos = nuevosCumplidos;
-        _documentos = nuevosDocumentos;
+        _cumplidos = datos.map((h) => h.completado).toList();
+        _documentos = datos.map((h) => h.id).toList();
         _cargando = false;
       });
     } catch (e) {
       if (!mounted) return;
+
       setState(() {
         _cargando = false;
         _error = 'No se pudieron cargar los hábitos: $e';
@@ -151,16 +126,21 @@ class _PanelHabitosState extends State<PanelHabitos> {
     });
 
     try {
-      await _db.collection('habitos').doc(_documentos[index]).update({
-        'completado': nuevoEstado,
-      });
+      await _repository.actualizar(
+        _documentos[index],
+        nuevoEstado,
+      );
     } catch (e) {
       if (!mounted) return;
+
       setState(() {
         _cumplidos[index] = !nuevoEstado;
       });
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo guardar el cambio')),
+        const SnackBar(
+          content: Text('No se pudo guardar el cambio'),
+        ),
       );
     }
   }
@@ -193,19 +173,14 @@ class _PanelHabitosState extends State<PanelHabitos> {
     });
 
     try {
-      final lote = _db.batch();
-
-      for (final id in _documentos) {
-        lote.update(_db.collection('habitos').doc(id), {
-          'completado': false,
-        });
-      }
-
-      await lote.commit();
+      await _repository.reiniciar(_documentos);
     } catch (e) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al reiniciar los hábitos')),
+        const SnackBar(
+          content: Text('Error al reiniciar los hábitos'),
+        ),
       );
     }
   }
@@ -214,7 +189,9 @@ class _PanelHabitosState extends State<PanelHabitos> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Hábitos — $_totalCumplidos / ${_habitos.length}'),
+        title: Text(
+          'Hábitos — $_totalCumplidos / ${_habitos.length}',
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.bar_chart),
@@ -234,7 +211,9 @@ class _PanelHabitosState extends State<PanelHabitos> {
         ],
       ),
       body: _cargando
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(),
+            )
           : _error.isNotEmpty
               ? Center(
                   child: Padding(
@@ -264,7 +243,9 @@ class _PanelHabitosState extends State<PanelHabitos> {
                               minHeight: 10,
                             ),
                             const SizedBox(height: 8),
-                            Text('${(_progreso * 100).round()} % completado'),
+                            Text(
+                              '${(_progreso * 100).round()} % completado',
+                            ),
                             const SizedBox(height: 12),
                             Text(
                               _mensaje,
@@ -317,7 +298,9 @@ class _PanelHabitosState extends State<PanelHabitos> {
                       child: SwitchListTile(
                         title: const Text(
                           'Modo enfoque',
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         subtitle: const Text(
                           'Ocultar hábitos ya cumplidos',
@@ -345,7 +328,8 @@ class _PanelHabitosState extends State<PanelHabitos> {
                           value: _cumplidos[index],
                           onChanged: (_) => _alternarHabito(index),
                           title: Text(_habitos[index]),
-                          controlAffinity: ListTileControlAffinity.leading,
+                          controlAffinity:
+                              ListTileControlAffinity.leading,
                         ),
                       );
                     }),
@@ -418,7 +402,8 @@ class ResumenHabitos extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final total = cumplidos.where((valor) => valor).length;
-    final progreso = total / habitos.length;
+    final progreso =
+        habitos.isEmpty ? 0.0 : total / habitos.length;
 
     return Scaffold(
       appBar: AppBar(
@@ -439,7 +424,10 @@ class ResumenHabitos extends StatelessWidget {
             const SizedBox(height: 20),
             Card(
               child: ListTile(
-                leading: const Icon(Icons.check_circle, color: Colors.green),
+                leading: const Icon(
+                  Icons.check_circle,
+                  color: Colors.green,
+                ),
                 title: const Text('Hábitos completados'),
                 subtitle: Text('$total de ${habitos.length}'),
               ),
@@ -475,11 +463,15 @@ class ResumenHabitos extends StatelessWidget {
                       cumplidos[index]
                           ? Icons.check_circle
                           : Icons.radio_button_unchecked,
-                      color: cumplidos[index] ? Colors.green : Colors.grey,
+                      color: cumplidos[index]
+                          ? Colors.green
+                          : Colors.grey,
                     ),
                     title: Text(habitos[index]),
                     subtitle: Text(
-                      cumplidos[index] ? 'Completado' : 'Pendiente',
+                      cumplidos[index]
+                          ? 'Completado'
+                          : 'Pendiente',
                     ),
                   );
                 },
